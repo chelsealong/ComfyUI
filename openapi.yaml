@@ -188,6 +188,31 @@ components:
                 - id
                 - updated_at
             type: object
+        ChurnkeyAuthResponse:
+            description: |
+                Credentials the Churnkey embed requires to launch the cancel flow.
+                `auth_hash` is hex-encoded HMAC-SHA256 of `customer_id` signed with the
+                server's CHURNKEY_HMAC_SECRET; it is bound to that single customer ID
+                and must not be reused for other customers.
+            properties:
+                auth_hash:
+                    description: Hex-encoded HMAC-SHA256(customer_id, CHURNKEY_HMAC_SECRET)
+                    type: string
+                customer_id:
+                    description: Stripe customer ID for the workspace
+                    type: string
+                mode:
+                    description: Churnkey environment matching the configured app
+                    enum:
+                        - live
+                        - test
+                        - sandbox
+                    type: string
+            required:
+                - customer_id
+                - auth_hash
+                - mode
+            type: object
         CreateWorkflowRequest:
             description: Request body for creating a new saved workflow.
             properties:
@@ -2382,6 +2407,49 @@ paths:
             summary: Get tag histogram for filtered assets
             tags:
                 - file
+    /api/billing/churnkey/auth:
+        get:
+            description: |
+                Returns the Stripe customer identifier and a server-signed
+                HMAC-SHA256 of the customer ID, used to launch the Churnkey-hosted
+                cancellation flow embed.
+            operationId: getChurnkeyAuth
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ChurnkeyAuthResponse'
+                    description: Success
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                    description: Unauthorized
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                    description: Workspace has no Stripe customer (never subscribed)
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                    description: Internal server error
+                "503":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                    description: Churnkey is not configured on the server
+            security:
+                - BearerAuth: []
+            summary: Get Churnkey HMAC auth credentials
+            tags:
+                - billing
     /api/embeddings:
         get:
             description: Returns the list of text-encoder embeddings available on disk.
@@ -3313,7 +3381,7 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/PromptErrorResponse'
-                    description: Payment required - User has not paid
+                    description: 'Retryable backpressure. Two distinct causes, disambiguated by the body''s `error.type`, NOT by parsing `error.message`: `PAYMENT_REQUIRED` / `FREE_TIER_UNAVAILABLE` / `FREE_TIER_EXHAUSTED` / `PARTNER_NODE_PAYMENT_REQUIRED` (a billing gate - retrying without paying never succeeds), or `QUEUE_LIMIT` (this workspace''s bounded job queue is full - retrying after some queued jobs complete will succeed).'
                 "500":
                     content:
                         application/json:
@@ -5152,6 +5220,8 @@ tags:
       name: user
     - description: Background task management
       name: task
+    - description: Workspace billing and subscription management
+      name: billing
     - description: Workflow storage and version management
       name: workflows
     - description: Job queue state and control
