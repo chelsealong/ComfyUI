@@ -877,9 +877,14 @@ async def validate_inputs(prompt_id, prompt, item, validated, visiting=None):
     v3_data = None
     validate_function_inputs = []
     validate_has_kwargs = False
+    autogrow_ids = set()
     if issubclass(obj_class, _ComfyNodeInternal):
         obj_class: _io._ComfyNodeBaseInternal
         class_inputs = obj_class.INPUT_TYPES()
+        for category in ("required", "optional"):
+            for input_id, input_value in class_inputs.get(category, {}).items():
+                if input_value[0] == _io.Autogrow.io_type:
+                    autogrow_ids.add(input_id)
         class_inputs, _, v3_data = _io.get_finalized_class_inputs(class_inputs, inputs)
         validate_function_name = "validate_inputs"
         validate_function = first_real_override(obj_class, validate_function_name)
@@ -892,6 +897,18 @@ async def validate_inputs(prompt_id, prompt, item, validated, visiting=None):
         validate_function_inputs = argspec.args
         validate_has_kwargs = argspec.varkw is not None
     received_types = {}
+
+    for x in autogrow_ids:
+        if x in inputs:
+            errors.append({
+                "type": "bad_autogrow_input_shape",
+                "message": "Autogrow input must be wired using dotted sub-slot keys (e.g. 'images.image_1'), not the input's own name",
+                "details": f"{x}",
+                "extra_info": {
+                    "input_name": x,
+                    "received_value": inputs[x],
+                }
+            })
 
     valid_inputs = set(class_inputs.get('required',{})).union(set(class_inputs.get('optional',{})))
 
