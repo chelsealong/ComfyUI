@@ -549,9 +549,15 @@ def get_save_image_path(filename_prefix: str, output_dir: str, image_width=0, im
 
     full_output_folder = os.path.join(output_dir, subfolder)
 
-    if not is_within_directory(output_dir, full_output_folder):
+    # Deliberately does not use is_within_directory(), which resolves symlinks:
+    # subfolder here only ever comes from filename_prefix, so the only escape to
+    # guard against is ".." or an absolute path in that prefix, not a symlink
+    # the user placed inside output_dir to redirect saves elsewhere on purpose.
+    abs_output_dir = os.path.abspath(output_dir)
+    abs_full_output_folder = os.path.abspath(full_output_folder)
+    if os.path.commonpath((abs_output_dir, abs_full_output_folder)) != abs_output_dir:
         err = "**** ERROR: Saving image outside the output folder is not allowed." + \
-              "\n full_output_folder: " + os.path.abspath(full_output_folder) + \
+              "\n full_output_folder: " + abs_full_output_folder + \
               "\n         output_dir: " + output_dir
         logging.error(err)
         raise Exception(err)

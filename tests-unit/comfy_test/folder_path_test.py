@@ -119,6 +119,29 @@ def test_get_save_image_path(temp_dir):
         assert filename_prefix == "test"
 
 
+def test_get_save_image_path_nested_subfolder(temp_dir):
+    full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path("some/sub/test", temp_dir, 100, 100)
+    assert full_output_folder == os.path.join(temp_dir, "some", "sub")
+    assert filename == "test"
+    assert subfolder == os.path.join("some", "sub")
+
+
+def test_get_save_image_path_symlinked_subfolder(temp_dir):
+    # A symlink placed inside output_dir to redirect saves elsewhere (e.g. to a
+    # different disk) must keep working, even into a subfolder that doesn't
+    # exist yet under the link target.
+    with tempfile.TemporaryDirectory() as external_dir:
+        link = os.path.join(temp_dir, "xtra")
+        try:
+            os.symlink(external_dir, link)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform/filesystem")
+
+        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path("xtra/new_subfolder/test", temp_dir, 100, 100)
+        assert full_output_folder == os.path.join(temp_dir, "xtra", "new_subfolder")
+        assert filename == "test"
+
+
 def test_base_path_changes(set_base_dir):
     test_dir = os.path.abspath("/test/dir")
     set_base_dir(test_dir)
