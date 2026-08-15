@@ -929,7 +929,9 @@ def load_models_gpu(models, memory_required=0, force_patch_weights=False, minimu
 
     models_to_load = []
 
-    free_for_dynamic=True
+    # A force-full-load request needs its memory now, not paged in on demand,
+    # so other dynamic models must not be exempted from eviction for it.
+    free_for_dynamic = not force_full_load
     for x in models:
         if not x.is_dynamic():
             free_for_dynamic = False
