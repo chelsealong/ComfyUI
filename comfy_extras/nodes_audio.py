@@ -100,6 +100,13 @@ def vae_decode_audio(vae, samples, tile=None, overlap=None):
     if latent.is_nested:
         latent = latent.unbind()[-1]
 
+    expected_channels = getattr(vae, "latent_channels", None)
+    if expected_channels is not None and latent.shape[1] != expected_channels:
+        raise ValueError(
+            f"VAEDecodeAudio: latent has {latent.shape[1]} channels but the connected VAE expects "
+            f"{expected_channels}. Make sure the audio VAE matches the one used to produce this latent."
+        )
+
     if tile is not None:
         audio = vae.decode_tiled(latent, tile_x=tile, tile_y=tile, overlap=overlap).movedim(-1, 1)
     else:
