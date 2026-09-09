@@ -159,9 +159,13 @@ def is_loopback(host):
 def create_origin_only_middleware():
     @web.middleware
     async def origin_only_middleware(request: web.Request, handler):
-        if 'Sec-Fetch-Site' in request.headers:
-            sec_fetch_site = request.headers['Sec-Fetch-Site']
-            if sec_fetch_site == 'cross-site':
+        if request.headers.get('Sec-Fetch-Site') == 'cross-site':
+            #only reject cross-site requests aimed at a loopback host, matching the Host/Origin check below.
+            #a random website POSTing to 127.0.0.1 is the threat here; a cross-site navigation to a public,
+            #properly-authenticated deployment (e.g. an identity-provider redirect back to the ComfyUI hostname)
+            #is legitimate and must not be blocked.
+            host_domain_parsed = urllib.parse.urlsplit('//' + request.headers.get('Host', '').lower())
+            if is_loopback(host_domain_parsed.hostname):
                 return web.Response(status=403)
         #this code is used to prevent the case where a random website can queue comfy workflows by making a POST to 127.0.0.1 which browsers don't prevent for some dumb reason.
         #in that case the Host and Origin hostnames won't match
