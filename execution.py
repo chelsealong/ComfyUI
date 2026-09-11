@@ -1079,6 +1079,22 @@ async def validate_inputs(prompt_id, prompt, item, validated, visiting=None):
                         errors.append(error)
                         continue
 
+                if input_type == io.DynamicCombo.io_type:
+                    combo_options = [option["key"] for option in extra_info.get("options", [])]
+                    if val not in combo_options:
+                        error = {
+                            "type": "value_not_in_list",
+                            "message": "Value not in list",
+                            "details": f"{x}: {val!r} not in {combo_options}",
+                            "extra_info": {
+                                "input_name": x,
+                                "input_config": info,
+                                "received_value": val,
+                            }
+                        }
+                        errors.append(error)
+                        continue
+
     if len(validate_function_inputs) > 0 or validate_has_kwargs:
         input_data_all, _, v3_data = get_input_data(inputs, obj_class, unique_id)
         input_filtered = {}
