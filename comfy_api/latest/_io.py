@@ -1265,9 +1265,11 @@ class DynamicCombo(ComfyTypeI):
                     break
             if selected_option is not None:
                 parse_class_inputs(out_dict, live_inputs, selected_option["inputs"], curr_prefix)
-                # add self to inputs
-                out_dict[input_type][finalized_id] = value
-                out_dict["dynamic_paths"][finalized_id] = finalize_prefix(curr_prefix, curr_prefix[-1])
+            # add self to inputs even if key matches no known option, so a stale/renamed
+            # selection does not silently vanish from the resolved schema and crash
+            # execute() with a missing-argument error instead of a validation error.
+            out_dict[input_type][finalized_id] = value
+            out_dict["dynamic_paths"][finalized_id] = finalize_prefix(curr_prefix, curr_prefix[-1])
 
 @comfytype(io_type="COMFY_DYNAMICSLOT_V3")
 class DynamicSlot(ComfyTypeI):
