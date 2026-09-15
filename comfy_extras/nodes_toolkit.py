@@ -1,5 +1,6 @@
 from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
+from comfy_execution.graph_utils import resolve_input_list_value
 
 
 class CreateList(io.ComfyNode):
@@ -45,11 +46,15 @@ class GetItemFromList(io.ComfyNode):
                 io.Int.Input("index", default=0),
             ],
             outputs=[io.AnyType.Output()],
+            hidden=[io.Hidden.dynprompt, io.Hidden.unique_id],
         )
 
     @classmethod
     def execute(cls, list, index) -> io.NodeOutput:
-        return io.NodeOutput(list[index[0]])
+        dynprompt = cls.hidden.dynprompt if cls.hidden is not None else None
+        unique_id = cls.hidden.unique_id if cls.hidden is not None else None
+        resolved_list = resolve_input_list_value(dynprompt, unique_id, "list", list, assume_list_output=True)
+        return io.NodeOutput(resolved_list[index[0]])
 
 
 class ToolkitExtension(ComfyExtension):

@@ -9,6 +9,25 @@ def is_link(obj):
         return False
     return True
 
+
+def resolve_input_list_value(dynprompt, node_id, input_name, values, assume_list_output):
+    # An INPUT_IS_LIST node receives whatever its upstream stored verbatim: a producer whose
+    # output isn't list-typed stores a single-item wrapper around its real value, but a
+    # producer whose output is list-typed (OUTPUT_IS_LIST) stores its items directly with no
+    # such wrapper. Only the source's schema tells us which one `values` actually is.
+    if not values:
+        return None
+    is_list_output = assume_list_output
+    if dynprompt is not None and node_id is not None:
+        source = dynprompt.get_node(node_id)["inputs"].get(input_name)
+        if is_link(source):
+            import nodes
+            producer = dynprompt.get_node(source[0])
+            output_is_list = getattr(nodes.NODE_CLASS_MAPPINGS.get(producer["class_type"]), "OUTPUT_IS_LIST", None)
+            if output_is_list is not None:
+                is_list_output = output_is_list[source[1]]
+    return values if is_list_output else values[0]
+
 # The GraphBuilder is just a utility class that outputs graphs in the form expected by the ComfyUI back-end
 class GraphBuilder:
     _default_prefix_root = ""

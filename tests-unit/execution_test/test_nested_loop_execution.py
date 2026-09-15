@@ -8,6 +8,7 @@ import comfy_extras.nodes_loop as nodes_loop
 from comfy_api.latest import io
 from comfy_execution.graph_utils import GraphBuilder
 from comfy_execution.validation import validate_loops
+from comfy_extras.nodes_toolkit import CreateList, GetItemFromList
 from execution import PromptExecutor
 
 
@@ -496,6 +497,39 @@ def test_loop_preserves_list_backed_carried_value():
     }
     execute_prompt(prompt, "list-carry-loop-test", ["close"])
     assert AppendIndex.values == [[[7], 0], [[7], 0, 1]]
+
+
+def test_loop_preserves_heterogeneous_create_list_as_carried_value(monkeypatch):
+    monkeypatch.setitem(nodes.NODE_CLASS_MAPPINGS, "TestCreateList", CreateList)
+    monkeypatch.setitem(nodes.NODE_CLASS_MAPPINGS, "TestGetItemFromList", GetItemFromList)
+    Capture.values = []
+    prompt = {
+        "img": {"class_type": "TestConstant", "inputs": {"value": 11}},
+        "flag": {"class_type": "TestConstant", "inputs": {"value": 99}},
+        "state": {
+            "class_type": "TestCreateList",
+            "inputs": {"inputs.input0": ["img", 0], "inputs.input1": ["flag", 0]},
+        },
+        "loop": {
+            "class_type": "StartLoop",
+            "inputs": {
+                "mode": "simple",
+                "mode.num_iterations": 1,
+                "initial_iteration_value": ["state", 0],
+            },
+        },
+        "item1": {
+            "class_type": "TestGetItemFromList",
+            "inputs": {"list": ["loop", 4], "index": 1},
+        },
+        "close": {
+            "class_type": "EndLoop",
+            "inputs": {"output_value": ["item1", 0], "accumulate": False},
+        },
+        "capture": {"class_type": "TestCapture", "inputs": {"value": ["close", 0]}},
+    }
+    execute_prompt(prompt, "heterogeneous-create-list-carry-loop-test", ["capture"])
+    assert Capture.values == [99]
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 from comfy_api.latest import io
-from comfy_execution.graph_utils import GraphBuilder, is_link
+from comfy_execution.graph_utils import GraphBuilder, is_link, resolve_input_list_value
 from server import PromptServer
 
 
@@ -218,7 +218,9 @@ class StartLoop(io.ComfyNode):
             close_id,
             values,
             list_items,
-            initial_iteration_value[0] if initial_iteration_value else None,
+            resolve_input_list_value(
+                dynprompt, unique_id, "initial_iteration_value", initial_iteration_value, assume_list_output=False
+            ),
             _cache_enabled(cache_iterations),
         )
         close = dynprompt.get_node(close_id)
