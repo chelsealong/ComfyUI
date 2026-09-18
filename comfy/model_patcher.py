@@ -907,7 +907,11 @@ class ModelPatcher:
         if key not in self.backup and not return_weight:
             self.backup[key] = collections.namedtuple('Dimension', ['weight', 'inplace_update'])(weight.to(device=self.offload_device, copy=inplace_update), inplace_update)
 
-        temp_dtype = comfy.model_management.lora_compute_dtype(device_to) if key in self.patches else None
+        if key in self.patches:
+            temp_dtype = comfy.model_management.lora_compute_dtype(device_to)
+        else:
+            module, param_name = comfy.utils.resolve_attr(self.model, key)
+            temp_dtype = getattr(module, "{}_comfy_model_dtype".format(param_name), None)
         if device_to is not None:
             temp_weight = comfy.model_management.cast_to_device(weight, device_to, temp_dtype, copy=True)
         else:
