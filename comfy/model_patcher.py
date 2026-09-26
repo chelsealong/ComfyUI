@@ -1219,6 +1219,8 @@ class ModelPatcher:
                         m.to(device_to)
                         module_mem += move_weight_functions(m, device_to)
                         if lowvram_possible:
+                            m.weight_function = [f for f in m.weight_function if not isinstance(f, LowVramPatch)]
+                            m.bias_function = [f for f in m.bias_function if not isinstance(f, LowVramPatch)]
                             if weight_key in self.patches:
                                 if force_patch_weights or comfy.lora.calculate_shape(self.patches[weight_key], m.weight, weight_key) != m.weight.shape:
                                     self.patch_weight_to_device(weight_key)
